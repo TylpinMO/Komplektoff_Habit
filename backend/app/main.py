@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import SQLModel, select
 from datetime import date, timedelta
 from typing import List
@@ -8,6 +9,15 @@ from .models import User, Habit, Done
 from sqlmodel import Session
 
 app = FastAPI(title="Habit Tracker API")
+
+# Allow frontend dev server to access API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.on_event("startup")
@@ -79,7 +89,8 @@ def user_habits(user_id: int):
         habits = session.exec(select(Habit).where(Habit.user_id == user_id)).all()
         out = []
         for h in habits:
-            count = session.exec(select(Done).where(Done.habit_id == h.id)).count()
+            done_rows = session.exec(select(Done).where(Done.habit_id == h.id)).all()
+            count = len(done_rows)
             out.append({"id": h.id, "name": h.name, "done_count": count})
         return out
 
@@ -87,7 +98,11 @@ def user_habits(user_id: int):
 @app.get("/users/{user_id}/stats")
 def user_stats(user_id: int):
     with Session(engine) as session:
-        habits_count = session.exec(select(Habit).where(Habit.user_id == user_id)).count()
+        habits_rows = session.exec(select(Habit).where(Habit.user_id == user_id)).all()
+        habits_count = len(habits_rows)
         week_ago = date.today() - timedelta(days=7)
-        done_count = session.exec(select(Done).where(Done.date >= week_ago).join(Habit, Habit.id == Done.habit_id).where(Habit.user_id == user_id)).count()
+        done_rows = session.exec(
+            select(Done).where(Done.date >= week_ago).join(Habit, Habit.id == Done.habit_id).where(Habit.user_id == user_id)
+        ).all()
+        done_count = len(done_rows)
         return {"habits": habits_count, "done_last_7_days": done_count}

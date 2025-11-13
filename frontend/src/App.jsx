@@ -12,7 +12,9 @@ export default function App() {
 	return (
 		<div style={{ padding: 20 }}>
 			<h1>Habit Tracker — frontend (skeleton)</h1>
-			<p>Запросы идут к бэкенду: <code>{BASE || 'тот же хост'}</code></p>
+			<p>
+				Запросы идут к бэкенду: <code>{BASE || 'тот же хост'}</code>
+			</p>
 			<h2>Users</h2>
 			<ul>
 				{users.map(u => (

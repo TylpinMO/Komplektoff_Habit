@@ -64,8 +64,11 @@ async def cmd_done(message: types.Message):
             return
         my = res.json()
         user_id = my.get("id")
-        habits = await client.get(f"{BACKEND}/users/{user_id}/habits")
-        habits = habits.json()
+        habits_resp = await client.get(f"{BACKEND}/users/{user_id}/habits")
+        if habits_resp.status_code != 200:
+            await message.reply("Ошибка при получении списка привычек. Попробуйте позже.")
+            return
+        habits = habits_resp.json()
     if not habits:
         await message.reply("У вас нет привычек. Добавьте через /addhabit")
         return
@@ -102,13 +105,23 @@ async def cmd_stats(message: types.Message):
             return
         my = res.json()
         user_id = my.get("id")
-        stats = await client.get(f"{BACKEND}/users/{user_id}/stats")
-        stats = stats.json()
+        stats_resp = await client.get(f"{BACKEND}/users/{user_id}/stats")
+        if stats_resp.status_code != 200:
+            await message.reply("Ошибка при получении статистики. Попробуйте позже.")
+            return
+        stats = stats_resp.json()
     await message.reply(f"У вас привычек: {stats.get('habits')}\nЗа последние 7 дней отмечено: {stats.get('done_last_7_days')}")
 
 
 def main():
     from aiogram import executor
+    # Ensure there's an event loop set for the main thread (fixes RuntimeError on some envs)
+    try:
+        import asyncio
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
     executor.start_polling(dp, skip_updates=True)
 
 
