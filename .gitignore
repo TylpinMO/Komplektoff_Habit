@@ -4,5 +4,21 @@ __pycache__/
 .env
 node_modules/
 dist/
-frontend/node_modules/
+# Env files
+.env
+.env.*
+# Logs and runtime
+backend.log
+nohup.out
+*.log
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+# Python
+.pytest_cache/
+# Databases
 backend/data.db
+data.db
+/*.db
+*.sqlite3
