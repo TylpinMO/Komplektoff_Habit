@@ -20,6 +20,7 @@ dp = Dispatcher(bot, storage=MemoryStorage())
 
 
 class AddHabit(StatesGroup):
+import logging
     waiting_name = State()
 
 
@@ -30,6 +31,10 @@ async def cmd_start(message: types.Message):
     await message.reply("Привет! Я буду помогать отслеживать привычки. Используй /addhabit, /done и /stats")
 
 
+
+# simple logging to bot.log/stdout
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 @dp.message_handler(commands=["addhabit"])
 async def cmd_addhabit(message: types.Message):
     await message.reply("Напиши название привычки (например: Читать 20 минут)")
@@ -37,7 +42,12 @@ async def cmd_addhabit(message: types.Message):
 
 
 @dp.message_handler(state=AddHabit.waiting_name)
-async def process_habit_name(message: types.Message, state: FSMContext):
+        try:
+            res = await client.post(f"{BACKEND}/bot/register_user", params={"telegram_id": message.from_user.id, "username": message.from_user.username})
+            if res.status_code == 200:
+                logger.info(f"Registered user {message.from_user.id}")
+        except Exception as e:
+            logger.exception("Error registering user on /start")
     name = message.text.strip()
     async with httpx.AsyncClient() as client:
         # register ensures user exists and returns internal user id
@@ -45,13 +55,22 @@ async def process_habit_name(message: types.Message, state: FSMContext):
         reg_json = reg.json() if reg.status_code == 200 else {}
         user_id = reg_json.get("id")
         if not user_id:
-            await message.reply("Не удалось зарегистрировать пользователя. Попробуйте позже.")
+        try:
+            reg = await client.post(f"{BACKEND}/bot/register_user", params={"telegram_id": message.from_user.id, "username": message.from_user.username})
+            reg_json = reg.json() if reg.status_code == 200 else {}
+        except Exception:
+            reg_json = {}
             await state.finish()
             return
         res = await client.post(f"{BACKEND}/bot/add_habit", params={"user_id": user_id, "name": name})
     await message.reply(f"Добавлена привычка: {name}")
     await state.finish()
-
+        try:
+            res = await client.post(f"{BACKEND}/bot/add_habit", params={"user_id": user_id, "name": name})
+            if res.status_code == 200:
+                logger.info(f"Added habit for user {user_id}: {name}")
+        except Exception:
+            logger.exception("Error adding habit")
 
 @dp.message_handler(commands=["done"])
 async def cmd_done(message: types.Message):
@@ -60,7 +79,12 @@ async def cmd_done(message: types.Message):
         # Lookup user by telegram_id (fast)
         res = await client.get(f"{BACKEND}/users/by_telegram/{message.from_user.id}")
         if res.status_code == 404:
-            await message.reply("Вы не зарегистрированы. Отправьте /start")
+        try:
+            res = await client.get(f"{BACKEND}/users/by_telegram/{message.from_user.id}")
+        except Exception:
+            logger.exception("Error calling /users/by_telegram")
+            await message.reply("Ошибка сервера. Попробуйте позже.")
+            return
             return
         my = res.json()
         user_id = my.get("id")
@@ -86,7 +110,27 @@ async def choose_habit(message: types.Message):
         await message.reply("Не понял выбор.")
         return
     async with httpx.AsyncClient() as client:
-        res = await client.get(f"{BACKEND}/users/by_telegram/{message.from_user.id}")
+        try:
+            done_res = await client.post(f"{BACKEND}/bot/done", params={"user_id": user_id, "habit_id": hid})
+        except Exception:
+            logger.exception("Error calling /bot/done")
+            await message.reply("Ошибка при отметке привычки. Попробуйте позже.", reply_markup=types.ReplyKeyboardRemove())
+            return
+
+        if done_res.status_code == 200:
+            jr = done_res.json()
+            if jr.get("ok"):
+                await message.reply("✅ Отмечено как сделанное сегодня!", reply_markup=types.ReplyKeyboardRemove())
+            else:
+                await message.reply(jr.get("message", "Уже отмечено сегодня"), reply_markup=types.ReplyKeyboardRemove())
+        else:
+            # log server response body for debugging
+            try:
+                text = done_res.text
+            except Exception:
+                text = '<no-body>'
+            logger.error(f"/bot/done returned status {done_res.status_code}: {text}")
+            await message.reply("Ошибка при отметке привычки. Попробуйте позже.", reply_markup=types.ReplyKeyboardRemove())
         if res.status_code == 404:
             await message.reply("Не зарегистрированы. Отправьте /start")
             return
