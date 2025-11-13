@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react'
 
 export default function App() {
 	const [users, setUsers] = useState([])
+	const BASE = import.meta.env.VITE_BACKEND_URL || ''
 	useEffect(() => {
-		fetch('/api/users')
+		fetch(`${BASE}/users`)
 			.then(r => r.json())
 			.then(setUsers)
 			.catch(() => {})
@@ -11,7 +12,7 @@ export default function App() {
 	return (
 		<div style={{ padding: 20 }}>
 			<h1>Habit Tracker — frontend (skeleton)</h1>
-			<p>Запросы идут к `/api` (настройте proxy или укажите полный URL)</p>
+			<p>Запросы идут к бэкенду: <code>{BASE || 'тот же хост'}</code></p>
 			<h2>Users</h2>
 			<ul>
 				{users.map(u => (
