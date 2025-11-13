@@ -64,6 +64,15 @@ def list_users():
         ]
 
 
+@app.get("/users/by_telegram/{telegram_id}")
+def get_user_by_telegram(telegram_id: int):
+    with Session(engine) as session:
+        user = session.exec(select(User).where(User.telegram_id == telegram_id)).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return {"id": user.id, "telegram_id": user.telegram_id, "username": user.username, "registered_at": user.registered_at}
+
+
 @app.get("/users/{user_id}/habits")
 def user_habits(user_id: int):
     with Session(engine) as session:

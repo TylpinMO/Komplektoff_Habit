@@ -40,9 +40,15 @@ async def cmd_addhabit(message: types.Message):
 async def process_habit_name(message: types.Message, state: FSMContext):
     name = message.text.strip()
     async with httpx.AsyncClient() as client:
-        # register ensures user exists
-        await client.post(f"{BACKEND}/bot/register_user", params={"telegram_id": message.from_user.id, "username": message.from_user.username})
-        res = await client.post(f"{BACKEND}/bot/add_habit", params={"user_id": message.from_user.id, "name": name})
+        # register ensures user exists and returns internal user id
+        reg = await client.post(f"{BACKEND}/bot/register_user", params={"telegram_id": message.from_user.id, "username": message.from_user.username})
+        reg_json = reg.json() if reg.status_code == 200 else {}
+        user_id = reg_json.get("id")
+        if not user_id:
+            await message.reply("Не удалось зарегистрировать пользователя. Попробуйте позже.")
+            await state.finish()
+            return
+        res = await client.post(f"{BACKEND}/bot/add_habit", params={"user_id": user_id, "name": name})
     await message.reply(f"Добавлена привычка: {name}")
     await state.finish()
 
@@ -51,14 +57,13 @@ async def process_habit_name(message: types.Message, state: FSMContext):
 async def cmd_done(message: types.Message):
     # get habits for user
     async with httpx.AsyncClient() as client:
-        # Try to find user id in backend by telegram_id via /users list
-        users = await client.get(f"{BACKEND}/users")
-        users = users.json()
-        my = next((u for u in users if u.get("telegram_id") == message.from_user.id), None)
-        if not my:
+        # Lookup user by telegram_id (fast)
+        res = await client.get(f"{BACKEND}/users/by_telegram/{message.from_user.id}")
+        if res.status_code == 404:
             await message.reply("Вы не зарегистрированы. Отправьте /start")
             return
-        user_id = my["id"]
+        my = res.json()
+        user_id = my.get("id")
         habits = await client.get(f"{BACKEND}/users/{user_id}/habits")
         habits = habits.json()
     if not habits:
@@ -78,14 +83,12 @@ async def choose_habit(message: types.Message):
         await message.reply("Не понял выбор.")
         return
     async with httpx.AsyncClient() as client:
-        # find user id
-        users = await client.get(f"{BACKEND}/users")
-        users = users.json()
-        my = next((u for u in users if u.get("telegram_id") == message.from_user.id), None)
-        if not my:
+        res = await client.get(f"{BACKEND}/users/by_telegram/{message.from_user.id}")
+        if res.status_code == 404:
             await message.reply("Не зарегистрированы. Отправьте /start")
             return
-        user_id = my["id"]
+        my = res.json()
+        user_id = my.get("id")
         await client.post(f"{BACKEND}/bot/done", params={"user_id": user_id, "habit_id": hid})
     await message.reply("Отмечено как сделанное сегодня!", reply_markup=types.ReplyKeyboardRemove())
 
@@ -93,13 +96,12 @@ async def choose_habit(message: types.Message):
 @dp.message_handler(commands=["stats"])
 async def cmd_stats(message: types.Message):
     async with httpx.AsyncClient() as client:
-        users = await client.get(f"{BACKEND}/users")
-        users = users.json()
-        my = next((u for u in users if u.get("telegram_id") == message.from_user.id), None)
-        if not my:
+        res = await client.get(f"{BACKEND}/users/by_telegram/{message.from_user.id}")
+        if res.status_code == 404:
             await message.reply("Вы не зарегистрированы. Отправьте /start")
             return
-        user_id = my["id"]
+        my = res.json()
+        user_id = my.get("id")
         stats = await client.get(f"{BACKEND}/users/{user_id}/stats")
         stats = stats.json()
     await message.reply(f"У вас привычек: {stats.get('habits')}\nЗа последние 7 дней отмечено: {stats.get('done_last_7_days')}")
