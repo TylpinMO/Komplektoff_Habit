@@ -58,6 +58,10 @@ def mark_done(user_id: int, habit_id: int):
         if not habit or habit.user_id != user_id:
             raise HTTPException(status_code=404, detail="Habit not found")
         today = date.today()
+        # Prevent duplicate marks for the same habit on the same day
+        existing = session.exec(select(Done).where(Done.habit_id == habit_id).where(Done.date == today)).first()
+        if existing:
+            return {"ok": False, "message": "Already marked today"}
         done = Done(habit_id=habit_id, date=today)
         session.add(done)
         session.commit()

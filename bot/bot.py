@@ -92,8 +92,15 @@ async def choose_habit(message: types.Message):
             return
         my = res.json()
         user_id = my.get("id")
-        await client.post(f"{BACKEND}/bot/done", params={"user_id": user_id, "habit_id": hid})
-    await message.reply("Отмечено как сделанное сегодня!", reply_markup=types.ReplyKeyboardRemove())
+        done_res = await client.post(f"{BACKEND}/bot/done", params={"user_id": user_id, "habit_id": hid})
+    if done_res.status_code == 200:
+        jr = done_res.json()
+        if jr.get("ok"):
+            await message.reply("Отмечено как сделанное сегодня!", reply_markup=types.ReplyKeyboardRemove())
+        else:
+            await message.reply(jr.get("message", "Уже отмечено сегодня"), reply_markup=types.ReplyKeyboardRemove())
+    else:
+        await message.reply("Ошибка при отметке привычки. Попробуйте позже.", reply_markup=types.ReplyKeyboardRemove())
 
 
 @dp.message_handler(commands=["stats"])
