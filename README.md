@@ -1,120 +1,77 @@
-# Habit Tracker — бот, backend и SPA
+# Komplektoff Habit
 
-Коротко: это проект для трекинга привычек — Telegram‑бот, FastAPI backend (SQLite) и простой React SPA (Vite).
+[![Проверки](https://github.com/TylpinMO/Komplektoff_Habit/actions/workflows/ci.yml/badge.svg)](https://github.com/TylpinMO/Komplektoff_Habit/actions/workflows/ci.yml)
 
-## Что в репо
+Трекер привычек из трёх частей: Telegram-бот принимает быстрые отметки, FastAPI хранит данные, React-dashboard показывает недельный ритм и серии.
 
-- `backend/` — FastAPI + SQLModel (сохраняет в `data.db` в корне)
-- `bot/` — Telegram бот на aiogram, пушит данные в backend
-- `frontend/` — Vite + React SPA (dev сервер для разработки)
+## Что реализовано
 
-## Требования
+- интерактивный адаптивный dashboard;
+- отметка выполнения и добавление привычек;
+- демонстрационный режим для публичной версии без доступа к базе;
+- подключение к API через `VITE_BACKEND_URL`;
+- регистрация пользователей, привычки, ежедневные отметки и статистика;
+- защита от повторной отметки одной привычки в течение дня;
+- Telegram-команды на aiogram;
+- отдельные автоматические проверки frontend и backend.
 
-- Git
-- Python 3.9+ (желательно в виртуальном окружении)
-- Node.js 16+ и `npm`
+## Структура
 
-## Быстрый старт (локально)
-
-1. Клонируйте репозиторий:
-
-```bash
-git clone https://github.com/TylpinMO/Komplektoff_Habit.git my-habit-tracker
-cd my-habit-tracker
+```text
+frontend/  React + Vite
+backend/   FastAPI + SQLModel + SQLite
+bot/       aiogram + HTTP-клиент
 ```
 
-2. Создайте виртуальное окружение и установите зависимости Python:
+## Быстрый запуск
+
+Backend:
 
 ```bash
-python -m venv venv
-source venv/bin/activate
+python -m venv .venv
+source .venv/bin/activate
 pip install -r backend/requirements.txt
+python -m uvicorn backend.app.main:app --reload --port 8000
+```
+
+Frontend:
+
+```bash
+cd frontend
+npm ci
+VITE_BACKEND_URL=http://127.0.0.1:8000 npm run dev
+```
+
+Bot:
+
+```bash
 pip install -r bot/requirements.txt
-```
-
-3. Установите зависимости фронтенда:
-
-```bash
-cd frontend
-npm install
-cd ..
-```
-
-4. Создайте `.env` (скопируйте из примера) и заполните значения:
-
-```bash
 cp .env.example .env
+python bot/bot.py
 ```
 
-> В `.env` обязательно: `TELEGRAM_TOKEN` (если хотите тестировать бот через Telegram). `BACKEND_URL` по умолчанию `http://127.0.0.1:8000`.
+Основные переменные окружения:
 
-5. Запуск сервисов (рекомендуется — в трёх отдельных терминалах)
+| Переменная | Назначение | Значение по умолчанию |
+|---|---|---|
+| `TELEGRAM_TOKEN` | токен Telegram-бота | обязательна для бота |
+| `BACKEND_URL` | адрес FastAPI для бота | `http://127.0.0.1:8000` |
+| `DATABASE_URL` | строка подключения SQLModel | `sqlite:///./data.db` |
+| `VITE_BACKEND_URL` | адрес API для frontend | демонстрационный режим |
 
-- Backend (dev, интерактивно — видно логи):
+## Проверка
 
 ```bash
-source venv/bin/activate
-cd /path/to/my-habit-tracker
-venv/bin/python -m uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
+cd frontend && npm test
+python -m unittest discover -s backend/tests -v
 ```
 
-- Frontend (dev):
+## Деплой frontend на Vercel
 
-```bash
-cd frontend
-VITE_BACKEND_URL=http://127.0.0.1:8000 npm run dev -- --port 5173 --host 127.0.0.1
-```
+В корне уже находится `vercel.json`. Vercel устанавливает зависимости из `frontend/`, запускает production build и публикует `frontend/dist`.
 
-- Bot (интерактивно, чтобы сразу видеть ответы):
+Для демонстрационной версии переменные окружения не нужны. Чтобы подключить публичный API, добавьте `VITE_BACKEND_URL` в настройках проекта Vercel и выполните новый deploy.
 
-```bash
-cd /path/to/my-habit-tracker
-source .env
-venv/bin/python bot/bot.py
-```
+## Лицензия
 
-6. Запуск в фоне (если нужно, и вы не хотите блокировать терминал)
-
-- Backend (фон):
-
-```bash
-cd /path/to/my-habit-tracker
-venv/bin/python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 > backend.log 2>&1 & echo $!
-```
-
-- Frontend (фон):
-
-```bash
-cd frontend
-VITE_BACKEND_URL=http://127.0.0.1:8000 nohup npm run dev -- --port 5173 --host 127.0.0.1 > ../frontend.log 2>&1 & echo $!
-```
-
-- Bot (фон):
-
-```bash
-cd /path/to/my-habit-tracker
-source .env
-nohup venv/bin/python bot/bot.py > bot.log 2>&1 & echo $!
-```
-
-7. Логи и отладка
-
-- Backend: `tail -f backend.log` (или смотреть вывод uvicorn в интерактивном режиме)
-- Frontend: `tail -f frontend.log`
-- Bot: `tail -f bot.log`
-
-8. Полезные curl‑команды для быстрого теста API
-
-```bash
-# список пользователей
-curl http://127.0.0.1:8000/users
-
-# зарегистрировать тестового пользователя
-curl -X POST "http://127.0.0.1:8000/bot/register_user?telegram_id=123&username=test"
-
-# добавить привычку
-curl -X POST "http://127.0.0.1:8000/bot/add_habit?user_id=1&name=Read"
-
-# отметить выполнение
-curl -X POST "http://127.0.0.1:8000/bot/done?user_id=1&habit_id=1"
-```
+MIT
