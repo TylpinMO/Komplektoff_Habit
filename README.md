@@ -2,11 +2,13 @@
 
 [![Проверки](https://github.com/TylpinMO/Komplektoff_Habit/actions/workflows/ci.yml/badge.svg)](https://github.com/TylpinMO/Komplektoff_Habit/actions/workflows/ci.yml)
 
-Трекер привычек из трёх частей: Telegram-бот принимает быстрые отметки, FastAPI хранит данные, React-dashboard показывает недельный ритм и серии.
+Трекер привычек из трёх частей: Telegram-бот принимает быстрые отметки, FastAPI хранит данные, а панель на React показывает недельный ритм и серии.
+
+[Открыть демонстрацию](https://komplektoff-habit.vercel.app)
 
 ## Что реализовано
 
-- интерактивный адаптивный dashboard;
+- интерактивная адаптивная панель;
 - отметка выполнения и добавление привычек;
 - демонстрационный режим для публичной версии без доступа к базе;
 - подключение к API через `VITE_BACKEND_URL`;
