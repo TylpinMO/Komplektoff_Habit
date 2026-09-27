@@ -6,6 +6,8 @@
 
 [Открыть демонстрацию](https://komplektoff-habit.vercel.app)
 
+![Панель трекера привычек Komplektoff Habit](docs/preview.png)
+
 ## Что реализовано
 
 - интерактивная адаптивная панель;
